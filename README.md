@@ -109,11 +109,11 @@ class GumballMachine
 
   def dispense
     if state == STATES[:HAS_QUARTER]
-      raise "Has quarter should never be the current state when dispensing."
+      puts "Has quarter should never be the current state when dispensing."
     elsif state == STATES[:NO_QUARTER]
-      raise "You need to pay first."
+      puts "You need to pay first."
     elsif state == STATES[:SOLD_OUT]
-      raise "Sold out should never be the current state when dispensing."
+      puts "Sold out should never be the current state when dispensing."
     elsif state == STATES[:SOLD]
       count = count - 1
       if count == 0
@@ -136,45 +136,6 @@ end
 
 ```
 
-# Make it a game!
-
-Make sure tests pass and add an additional feature of giving the
-user a chance to win an extra gumball. There is a 1 in 10 chance
-of the user winning an extra gumball.
-
-Add a WINNER state
-
-```ruby
-class GumballMachine
-  states = {
-    ...
-    WINNER: 4
-  }
-
-  def insert_quarter
-    ...
-    # add extra state logic
-  end
-
-  def eject_quarter
-    ...
-    # add extra state logic
-  end
-
-  def turn_crank
-    ...
-    # add extra state logic
-  end
-
-  def dispense
-    ...
-    # add extra state logic
-  end
-
-end
-
-```
-
 # Abstraction that leverages the Strategy Pattern
 
 By now we are seeing a use of logic that is being repeated across our
@@ -183,160 +144,106 @@ on our current state to make our code more DRY?
 
 ```ruby
 class State
-end
+  attr_accessor :gumball_machine
 
-class InterfaceState < State
+  def initialize(gumball_machine)
+    @gumball_machine = gumball_machine
+  end
+
   def insert_quarter
-    ...
-    # add extra state logic
+    puts NoMethodError, "define insert_quarter"
   end
 
   def eject_quarter
-    ...
-    # add extra state logic
+    puts NoMethodError, "define eject_quarter"
   end
 
   def turn_crank
-    ...
-    # add extra state logic
+    puts NoMethodError, "define turn_crank"
   end
 
   def dispense
-    ...
-    # add extra state logic
+    puts NoMethodError, "define dispense"
   end
+
 end
 
 class SoldState < State
   def insert_quarter
-    ...
-    # add extra state logic
   end
 
   def eject_quarter
-    ...
-    # add extra state logic
   end
 
   def turn_crank
-    ...
-    # add extra state logic
   end
 
   def dispense
-    ...
-    # add extra state logic
   end
 end
 
 class SoldOutState < State
   def insert_quarter
-    ...
-    # add extra state logic
   end
 
   def eject_quarter
-    ...
-    # add extra state logic
   end
 
   def turn_crank
-    ...
-    # add extra state logic
   end
 
   def dispense
-    ...
-    # add extra state logic
   end
 end
 
 class NoQuarterState < State
   def insert_quarter
-    ...
-    # add extra state logic
   end
 
   def eject_quarter
-    ...
-    # add extra state logic
   end
 
   def turn_crank
-    ...
-    # add extra state logic
   end
 
   def dispense
-    ...
-    # add extra state logic
   end
 end
 
 class HasQuarterState < State
   def insert_quarter
-    ...
-    # add extra state logic
   end
 
   def eject_quarter
-    ...
-    # add extra state logic
   end
 
   def turn_crank
-    ...
-    # add extra state logic
   end
 
   def dispense
-    ...
-    # add extra state logic
   end
 end
 
-class State::Winner
-  def insert_quarter
-    ...
-    # add extra state logic
-  end
-
-  def eject_quarter
-    ...
-    # add extra state logic
-  end
-
-  def turn_crank
-    ...
-    # add extra state logic
-  end
-
-  def dispense
-    ...
-    # add extra state logic
-  end
-end
 ```
 
 ## Update GumballMachine with our new state objects.
 
 ```ruby
 class GumballMachine
-  STATES = {
-    SOLD_OUT: State::SoldOut.new,
-    NO_QUARTER: State::NoQuarter.new,
-    HAS_QUARTER: State::HasQuarter.new,
-    SOLD: State::Sold.new,
-    WINNER: State::Winner.new
-  }
+  attr_accessor :state, :count, :sold_out, :no_quarter, :has_quarter, :sold
 
-  def initialize(count)
-    ...
+  def initialize(count=0)
+    @sold_out = SoldOutState.new(self)
+    @no_quarter = NoQuarterState.new(self)
+    @has_quarter = HasQuarterState.new(self)
+    @sold = SoldState.new(self)
+    @state = @sold_out
+
     if count > 0
-      state = STATES[:NO_QUARTER]
-    else
-      state = STATES[:SOLD_OUT]
+      @state = @no_quarter
     end
+
+    @count = count
   end
 
   def insert_quarter
@@ -363,14 +270,6 @@ end
 ## Implement the HasQuarter and Sold State classes.
 
 ```ruby
-class State
-  attr_accessor :gumball_machine
-
-  def initialize(gumball_machine)
-    @gumball_machine = gumball_machine
-  end
-end
-
 class HasQuarter < State
   def insert_quarter
     puts "You can't insert another quarter."
@@ -389,11 +288,9 @@ class HasQuarter < State
   def dispense
     puts "No gumball dispensed."
   end
-
 end
 
 class SoldState < State
-
   def insert_quarter
     puts "Please wait we are already giving you a gumball."
   end
@@ -419,57 +316,26 @@ end
 
 ```
 
-# Check for an extra gumball winner inside of HasQuarterState
-
-```ruby
-class HasQuarterState < State
-  magic_number = rand(10)
-
-  def insert_quarter
-    puts "You can't insert another quarter."
-  end
-
-  def eject_quarter
-    puts "Quarter returned"
-    gumball_machine.state = gumball_machine.no_quarter_state
-  end
-
-  def turn_crank
-    puts "You turned..."    
-    if magic_number == 5 && gumball_machine.count > 1
-      gumball_machine.state = gumball_machine.winner_state
-    else
-      gumball_machine.state = gumball_machine.sold_state
-    end
-  end
-
-  def dispense
-    puts "No gumball dispensed"
-  end
-
-end
-```
-
 # Run our code
 
 ```ruby
-  class GumballMachine
-    def run
-      gumball_machine = GumballMachine.new
+class GumballMachine
+  def self.run
+    gumball_machine = GumballMachine.new
 
-      puts gumball_machine.to_s
-      
-      gumball_machine.insert_quarter
-      gumball_machine.turn_crank
+    puts gumball_machine.to_s
+    
+    gumball_machine.insert_quarter
+    gumball_machine.turn_crank
 
-      puts gumball_machine.to_s
+    puts gumball_machine.to_s
 
-      gumball_machine.insert_quarter
-      gumball_machine.turn_crank
-      gumball_machine.insert_quarter
-      gumball_machine.turn_crank
+    gumball_machine.insert_quarter
+    gumball_machine.turn_crank
+    gumball_machine.insert_quarter
+    gumball_machine.turn_crank
 
-      puts gumball_machine.to_s
-    end
+    puts gumball_machine.to_s
   end
+end
 ```

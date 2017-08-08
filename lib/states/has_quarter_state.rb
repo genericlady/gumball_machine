@@ -11,6 +11,7 @@ class HasQuarterState < State
   def turn_crank
     puts "You turned the crank"
     gumball_machine.state = gumball_machine.sold
+    gumball_machine.dispense
   end
 
   def dispense
