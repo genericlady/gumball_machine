@@ -1,0 +1,2 @@
+class SoldState < State
+end
