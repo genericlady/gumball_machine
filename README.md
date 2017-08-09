@@ -140,7 +140,9 @@ end
 
 By now we are seeing a use of logic that is being repeated across our
 methods. Why not abstract these different pieces of logic that depend
-on our current state to make our code more DRY?
+on our current state to make our code more DRY? While we're at it lets
+use a class of `State` to act as an interface which will ensure
+it's children objects keep their promises to define specified methods.
 
 ```ruby
 class State
@@ -151,82 +153,115 @@ class State
   end
 
   def insert_quarter
-    puts NoMethodError, "define insert_quarter"
+    raise NoMethodError, "define insert_quarter"
   end
 
   def eject_quarter
-    puts NoMethodError, "define eject_quarter"
+    raise NoMethodError, "define eject_quarter"
   end
 
   def turn_crank
-    puts NoMethodError, "define turn_crank"
+    raise NoMethodError, "define turn_crank"
   end
 
   def dispense
-    puts NoMethodError, "define dispense"
+    raise NoMethodError, "define dispense"
   end
 
 end
 
 class SoldState < State
   def insert_quarter
+    puts "Please wait we are already giving you a gumball."
   end
 
   def eject_quarter
+    puts "Sorry you already turned the crank."
   end
 
   def turn_crank
+    puts "Turning twice does nothing."
   end
 
   def dispense
+    gumball_machine.count = gumball_machine.count - 1
+    gumball_machine.release_ball
+    if gumball_machine.count > 0
+      gumball_machine.state = gumball_machine.no_quarter
+    else
+      gumball_machine.state = gumball_machine.sold_out
+    end
   end
+
 end
 
 class SoldOutState < State
   def insert_quarter
+    puts "Hey there are no more gumballs"
   end
 
   def eject_quarter
+    puts "Sorry, you can't eject because you haven't inserted a quarter yet."
   end
 
   def turn_crank
+    puts "You turned but there are no Gumballs."
   end
 
   def dispense
+    puts "Sold out should never be the current state when dispensing."
   end
+
 end
 
 class NoQuarterState < State
   def insert_quarter
+    puts "You have inserted a quarter"
+    gumball_machine.state = gumball_machine.has_quarter
   end
 
   def eject_quarter
+    puts "You have not inserted a quarter"
   end
 
   def turn_crank
+    puts "You turned but there's no quarter."
   end
 
   def dispense
+    puts "You need to pay first."
   end
 end
 
 class HasQuarterState < State
   def insert_quarter
+    puts "You cannot insert another quarter."
   end
 
   def eject_quarter
+    puts "Quarter returned."
+    gumball_machine.state = gumball_machine.no_quarter
   end
 
   def turn_crank
+    puts "You turned the crank"
+    gumball_machine.state = gumball_machine.sold
+    gumball_machine.dispense
   end
 
   def dispense
+    puts "No Gumball Dispensed"
   end
+
 end
 
 ```
 
 ## Update GumballMachine with our new state objects.
+
+Now that we have abstracted all that expected behavior into other states
+we can use them inside of our GumballMachine class. This will clean up
+our class much better now and we no longer have messy logic.
 
 ```ruby
 class GumballMachine
@@ -267,61 +302,66 @@ class GumballMachine
 end
 ```
 
-## Implement the HasQuarter and Sold State classes.
-
-```ruby
-class HasQuarter < State
-  def insert_quarter
-    puts "You can't insert another quarter."
-  end
-
-  def eject_quarter
-    puts "Quarter returned"
-    gumball_machine.state = gumball_machine.no_quarter
-  end
-
-  def turn_crank
-    puts "You turned..."
-    gumball_machine.state = gumball_machine.sold_state
-  end
-
-  def dispense
-    puts "No gumball dispensed."
-  end
-end
-
-class SoldState < State
-  def insert_quarter
-    puts "Please wait we are already giving you a gumball."
-  end
-
-  def eject_quarter
-    puts "Sorry you already turned the crank."
-  end
-
-  def turn_crank
-    puts "Turning twice does nothing."
-  end
-
-  def dispense
-    gumball_machine.release_ball
-    if gumball_machine.count > 0
-      gumball_machine.state = gumball_machine.no_quarter_state
-    else
-      gumball_machine.state = gumball_machine.sold_out_state
-    end
-  end
-
-end
-
-```
-
 # Run our code
+
+We can finally run our code and see that everything works fine. As the 
+state of the GumballMachine changes so does the output. Go ahead and try out
+`GumballMachine.run`
 
 ```ruby
 class GumballMachine
+  attr_accessor :state, :count, :sold_out, :no_quarter, :has_quarter, :sold
+
+  def initialize(count=0)
+    @sold_out = SoldOutState.new(self)
+    @no_quarter = NoQuarterState.new(self)
+    @has_quarter = HasQuarterState.new(self)
+    @sold = SoldState.new(self)
+    @state = @sold_out
+
+    if count > 0
+      @state = @no_quarter
+    end
+
+    @count = count
+  end
+
+  def insert_quarter
+    state.insert_quarter
+  end
+
+  def eject_quarter
+    state.eject_quarter
+  end
+
+  def turn_crank
+    state.turn_crank
+  end
+
+  def dispense
+    state.dispense
+  end
+
+  def to_s
+    puts "Gumball Machine"
+    puts "inventory #{count}"
+    if count > 0
+      puts "Machine is ready for your quarter"
+    else
+      puts "Ooops no more gumballs"
+    end
+  end
+
+  def refill
+    count = 10
+  end
+
+  def release_ball
+    puts "A ball comes rolling out."
+  end
+
   def self.run
-    gumball_machine = GumballMachine.new
+    gumball_machine = GumballMachine.new(5)
 
     puts gumball_machine.to_s
     
@@ -336,6 +376,59 @@ class GumballMachine
     gumball_machine.turn_crank
 
     puts gumball_machine.to_s
+
+    gumball_machine.insert_quarter
+    gumball_machine.turn_crank
+    puts gumball_machine.to_s
+
+    gumball_machine.insert_quarter
+    gumball_machine.turn_crank
+    puts gumball_machine.to_s
   end
+
 end
 ```
+### output
+
+```
+Gumball Machine
+inventory 5
+Machine is ready for your quarter
+
+You have inserted a quarter
+You turned the crank
+A ball comes rolling out.
+Gumball Machine
+inventory 4
+Machine is ready for your quarter
+
+You have inserted a quarter
+You turned the crank
+A ball comes rolling out.
+You have inserted a quarter
+You turned the crank
+A ball comes rolling out.
+Gumball Machine
+inventory 2
+Machine is ready for your quarter
+
+You have inserted a quarter
+You turned the crank
+A ball comes rolling out.
+Gumball Machine
+inventory 1
+Machine is ready for your quarter
+
+You have inserted a quarter
+You turned the crank
+A ball comes rolling out.
+Gumball Machine
+inventory 0
+Ooops no more gumballs
+``` 
+
+You can see from the output that as the number of Gumballs reach 0
+the state changes and you have no more gumballs. All this without
+messy if else statements in the Gumball class! The state pattern
+is a great way to handle varying conditions when they depend upon
+a mutable state.
